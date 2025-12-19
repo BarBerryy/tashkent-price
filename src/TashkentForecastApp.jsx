@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
-  ResponsiveContainer, BarChart, Bar, Cell, AreaChart, Area
+  ResponsiveContainer, BarChart, Bar, Cell
 } from 'recharts';
 
 // ==========================================
@@ -9,15 +9,14 @@ import {
 // ==========================================
 const GOOGLE_SHEETS_ID = '1oJtLLMd13oPqNGS2htIS7kS-CVGvr1vIQJXEXBVqd-4';
 const SHEET_NAME = 'Цены (Актуальные)';
+const SHEETS_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEETS_ID}/edit`;
 
-// Точные названия колонок из вашей таблицы
+// Точные названия колонок из таблицы
 const COLUMNS = {
   name: 'Наименование ЖК',
   developer: 'Застройщик',
   district: 'Район',
   class: 'Класс',
-  // Колонки с ценами - добавляйте новые по мере появления
-  prices: ['Цена сентябрь', 'Цена октябрь']  // Будут искаться автоматически
 };
 
 // Цвета
@@ -28,11 +27,11 @@ const CLASS_COLORS = {
 };
 
 const DISTRICT_COLORS = {
-  'Мирзо-Улугбекский': '#2c4061ff',
-  'Мирабадский': '#be4fc4ff',
-  'Яшнабадский': '#a5c255ff',
-  'Алмазарский': '#4b3611ff',
-  'Яккасарийский': '#28e46aff'
+  'Мирзо-Улугбекский': '#3b82f6',
+  'Мирабадский': '#8b5cf6',
+  'Яшнабадский': '#10b981',
+  'Алмазарский': '#f59e0b',
+  'Яккасарийский': '#ec4899'
 };
 
 // ==========================================
@@ -92,11 +91,7 @@ class FuzzyTSKModel {
     }
 
     let baseChange = totalWeight > 0 ? weightedSum / totalWeight : 0.05;
-    
-    // Учитываем текущий тренд (30% влияния)
     baseChange += trend * 0.3;
-    
-    // Коэффициент класса
     baseChange *= this.getClassCoefficient(className);
 
     return baseChange;
@@ -123,7 +118,6 @@ function getSheetUrl() {
 
 function parseGoogleSheetsResponse(text) {
   try {
-    // Убираем JSONP обёртку
     const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?$/);
     const jsonStr = match ? match[1] : text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
     const data = JSON.parse(jsonStr);
@@ -133,11 +127,9 @@ function parseGoogleSheetsResponse(text) {
       return null;
     }
     
-    // Заголовки
     const headers = data.table.cols.map(col => col.label || '');
     console.log('📊 Заголовки из таблицы:', headers);
     
-    // Данные
     const rows = data.table.rows.map(row => {
       const obj = {};
       if (row.c) {
@@ -146,10 +138,9 @@ function parseGoogleSheetsResponse(text) {
         });
       }
       return obj;
-    }).filter(row => row[COLUMNS.name]); // Только строки с названием ЖК
+    }).filter(row => row[COLUMNS.name]);
     
     console.log('📊 Загружено строк:', rows.length);
-    console.log('📊 Первая строка:', rows[0]);
     
     return { headers, rows };
   } catch (e) {
@@ -164,10 +155,18 @@ function parseGoogleSheetsResponse(text) {
 function normalizeClass(cls) {
   if (!cls) return null;
   const lower = String(cls).toLowerCase().trim();
-  if (lower.includes('комфорт')) return 'Комфорт';
-  if (lower.includes('бизнес')) return 'Бизнес';
+  
+  // Строгая проверка - только точные совпадения
+  if (lower === 'комфорт') return 'Комфорт';
+  if (lower === 'бизнес') return 'Бизнес';
+  if (lower === 'премиум') return 'Премиум';
+  
+  // Проверка с вхождением (для случаев вроде "комфорт, бизнес")
   if (lower.includes('премиум')) return 'Премиум';
-  return cls;
+  if (lower.includes('бизнес')) return 'Бизнес';
+  if (lower.includes('комфорт')) return 'Комфорт';
+  
+  return null; // Неизвестный класс - пропускаем
 }
 
 function normalizeDistrict(d) {
@@ -188,7 +187,6 @@ function parsePrice(val) {
   return isNaN(num) ? null : num;
 }
 
-// Находит все колонки с ценами (начинаются с "Цена ")
 function findPriceColumns(headers) {
   return headers.filter(h => h && h.toLowerCase().startsWith('цена '));
 }
@@ -199,17 +197,18 @@ function findPriceColumns(headers) {
 const styles = {
   container: {
     minHeight: '100vh',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#1f2d1fff',
     color: '#e2e8f0',
     padding: '24px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    margin: 0,
   },
   maxWidth: {
     maxWidth: '1400px',
     margin: '0 auto',
   },
   header: {
-    background: 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%)',
+    background: 'linear-gradient(135deg, #1d5446ff 0%, #184c3bff 50%, #124533ff 100%)',
     borderRadius: '16px',
     padding: '24px',
     marginBottom: '24px',
@@ -225,17 +224,17 @@ const styles = {
     fontSize: '14px',
   },
   card: {
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
+    backgroundColor: 'rgba(33, 132, 105, 0.3)',
     borderRadius: '12px',
     padding: '20px',
     marginBottom: '20px',
-    border: '1px solid rgba(255,255,255,0.1)',
+    border: '1px solid rgba(16, 185, 129, 0.2)',
   },
   cardTitle: {
     fontSize: '18px',
     fontWeight: '600',
     marginBottom: '16px',
-    color: '#f1f5f9',
+    color: '#6ee7b7',
   },
   grid: {
     display: 'grid',
@@ -244,14 +243,14 @@ const styles = {
     marginBottom: '24px',
   },
   metricCard: {
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
+    backgroundColor: 'rgba(33, 123, 99, 0.4)',
     borderRadius: '12px',
     padding: '20px',
-    border: '1px solid rgba(255,255,255,0.1)',
+    border: '1px solid rgba(16, 185, 129, 0.2)',
   },
   metricLabel: {
     fontSize: '14px',
-    color: '#94a3b8',
+    color: '#519278ff',
     marginBottom: '4px',
   },
   metricValue: {
@@ -289,14 +288,32 @@ const styles = {
     fontWeight: '600',
   },
   button: {
-    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-    border: 'none',
+    background: 'rgba(4, 18, 14, 0.15)',
+    border: '1px solid rgba(16, 185, 129, 0.4)',
     borderRadius: '8px',
     padding: '10px 20px',
     color: 'white',
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '500',
+    textDecoration: 'none',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  buttonSecondary: {
+    background: 'rgba(4, 18, 14, 0.15)',
+    border: '1px solid rgba(16, 185, 129, 0.4)',
+    borderRadius: '8px',
+    padding: '10px 20px',
+    color: '#ffffffff',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    textDecoration: 'none',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
   },
   loading: {
     display: 'flex',
@@ -328,12 +345,17 @@ const styles = {
     border: 'none',
   },
   tabActive: {
-    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+    background: 'linear-gradient(135deg, #059669, #10b981)',
     color: 'white',
   },
   tabInactive: {
-    backgroundColor: 'rgba(51, 65, 85, 0.5)',
-    color: '#94a3b8',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    color: '#6ee7b7',
+  },
+  buttonGroup: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
   },
 };
 
@@ -349,21 +371,17 @@ export default function TashkentForecastApp() {
 
   const model = useMemo(() => new FuzzyTSKModel(), []);
 
-  // Загрузка данных
   const loadData = async () => {
     setLoading(true);
     setError(null);
     
     try {
       console.log('🔄 Загрузка данных...');
-      console.log('📊 URL:', getSheetUrl());
       
       const response = await fetch(getSheetUrl());
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
       const text = await response.text();
-      console.log('📊 Получено байт:', text.length);
-      
       const parsed = parseGoogleSheetsResponse(text);
       if (!parsed) throw new Error('Не удалось распарсить данные');
       
@@ -383,7 +401,6 @@ export default function TashkentForecastApp() {
     loadData();
   }, []);
 
-  // Анализ данных
   const analysis = useMemo(() => {
     if (!data) return null;
     
@@ -406,27 +423,28 @@ export default function TashkentForecastApp() {
       const classRaw = row[COLUMNS.class];
       const districtRaw = row[COLUMNS.district];
       
-      if (!name || !classRaw) return;
+      if (!name) return;
       
       const cls = normalizeClass(classRaw);
+      if (!cls) {
+        console.log(`⚠️ Пропущен ${name}: неизвестный класс "${classRaw}"`);
+        return;
+      }
+      
       const district = normalizeDistrict(districtRaw);
       
-      // Собираем цены из всех колонок
       const prices = priceColumns
         .map(col => ({ col, price: parsePrice(row[col]) }))
         .filter(p => p.price !== null && p.price > 0);
       
       if (prices.length === 0) return;
       
-      // Первая и последняя цена
       const firstPrice = prices[0].price;
       const lastPrice = prices[prices.length - 1].price;
       const trend = prices.length > 1 ? (lastPrice - firstPrice) / firstPrice : 0;
       
-      // Отладка для первых 3 строк
-      if (i < 3) {
-        console.log(`📋 ${name}: класс=${cls}, цены=`, prices.map(p => `${p.col}: $${p.price}`));
-      }
+      // Логируем все ЖК
+      console.log(`📋 ${name}: класс="${classRaw}" -> ${cls}, цена=${lastPrice}`);
 
       const jk = {
         name,
@@ -442,18 +460,21 @@ export default function TashkentForecastApp() {
       
       allJK.push(jk);
 
-      // Группировка по классам
       if (!byClass[cls]) byClass[cls] = [];
       byClass[cls].push(jk);
 
-      // Группировка по районам
       if (district) {
         if (!byDistrict[district]) byDistrict[district] = [];
         byDistrict[district].push(jk);
       }
     });
 
-    // Статистика по классам
+    // Логируем количество по классам
+    console.log('📊 Итого по классам:');
+    Object.entries(byClass).forEach(([cls, jks]) => {
+      console.log(`   ${cls}: ${jks.length} ЖК ->`, jks.map(j => j.name));
+    });
+
     const classStats = {};
     Object.entries(byClass).forEach(([cls, jks]) => {
       const lastPrices = jks.map(j => j.lastPrice);
@@ -463,10 +484,8 @@ export default function TashkentForecastApp() {
       const avgTrend = jks.reduce((a, j) => a + j.trend, 0) / jks.length;
       
       classStats[cls] = { count: jks.length, avg, min, max, avgTrend, jks };
-      console.log(`📊 ${cls}: ${jks.length} ЖК, средняя: $${avg}, мин: $${min}, макс: $${max}`);
     });
 
-    // Статистика по районам
     const districtStats = {};
     Object.entries(byDistrict).forEach(([d, jks]) => {
       const lastPrices = jks.map(j => j.lastPrice);
@@ -474,7 +493,6 @@ export default function TashkentForecastApp() {
       districtStats[d] = { count: jks.length, avg, jks };
     });
 
-    // История цен по месяцам для каждого класса
     const priceHistory = priceColumns.map(col => {
       const month = col.replace('Цена ', '');
       const point = { month };
@@ -492,12 +510,9 @@ export default function TashkentForecastApp() {
       return point;
     });
 
-    console.log('📈 История цен:', priceHistory);
-
     return { classStats, districtStats, allJK, priceColumns, priceHistory };
   }, [data]);
 
-  // Прогнозы
   const forecasts = useMemo(() => {
     if (!analysis) return null;
     
@@ -515,13 +530,12 @@ export default function TashkentForecastApp() {
     return byClass;
   }, [analysis, model]);
 
-  // Рендер загрузки
   if (loading) {
     return (
       <div style={styles.container}>
         <div style={styles.maxWidth}>
           <div style={styles.header}>
-            <h1 style={styles.title}>🏗️ Прогноз цен на новостройки Ташкента</h1>
+            <h1 style={styles.title}>Прогноз цен на новостройки Ташкента</h1>
           </div>
           <div style={styles.loading}>
             <div style={{ fontSize: '40px' }}>⏳</div>
@@ -532,26 +546,24 @@ export default function TashkentForecastApp() {
     );
   }
 
-  // Рендер ошибки
   if (error || !analysis) {
     return (
       <div style={styles.container}>
         <div style={styles.maxWidth}>
           <div style={styles.header}>
-            <h1 style={styles.title}>🏗️ Прогноз цен на новостройки Ташкента</h1>
+            <h1 style={styles.title}>Прогноз цен на новостройки Ташкента</h1>
           </div>
           <div style={styles.error}>
             <h3>❌ Ошибка загрузки</h3>
             <p>{error || 'Не удалось проанализировать данные'}</p>
-            <p style={{ marginTop: '12px', fontSize: '13px' }}>
-              Проверьте:<br/>
-              • Доступ к таблице (Поделиться → Все, у кого есть ссылка)<br/>
-              • Название листа: "{SHEET_NAME}"<br/>
-              • Колонки: {COLUMNS.name}, {COLUMNS.class}, {COLUMNS.district}, Цена ...
-            </p>
-            <button onClick={loadData} style={{ ...styles.button, marginTop: '16px' }}>
-              🔄 Попробовать снова
-            </button>
+            <div style={{ ...styles.buttonGroup, marginTop: '16px' }}>
+              <button onClick={loadData} style={styles.button}>
+                🔄 Попробовать снова
+              </button>
+              <a href={SHEETS_URL} target="_blank" rel="noopener noreferrer" style={styles.buttonSecondary}>
+                Открыть исходную таблицу
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -559,9 +571,9 @@ export default function TashkentForecastApp() {
   }
 
   const tabs = [
-    { id: 'overview', label: '📊 Обзор' },
-    { id: 'forecast', label: '🔮 Прогноз' },
-    { id: 'details', label: '📋 Все ЖК' },
+    { id: 'overview', label: 'Обзор' },
+    { id: 'forecast', label: 'Прогноз' },
+    { id: 'details', label: 'Все ЖК' },
   ];
 
   return (
@@ -571,12 +583,19 @@ export default function TashkentForecastApp() {
         <div style={styles.header}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div>
-              <h1 style={styles.title}>🏗️ Прогноз цен на новостройки Ташкента</h1>
+              <h1 style={styles.title}>Прогноз цен на новостройки Ташкента</h1>
               <p style={styles.subtitle}>
-                Лист: {SHEET_NAME} • ЖК: {analysis.allJK.length} • Обновлено: {lastUpdate}
+                ЖК: {analysis.allJK.length} • Обновлено: {lastUpdate}
               </p>
             </div>
-            <button onClick={loadData} style={styles.button}>🔄 Обновить</button>
+            <div style={styles.buttonGroup}>
+              <button onClick={loadData} style={styles.button}>
+                Обновить данные
+              </button>
+              <a href={SHEETS_URL} target="_blank" rel="noopener noreferrer" style={styles.buttonSecondary}>
+                Открыть исходную таблицу
+              </a>
+            </div>
           </div>
         </div>
 
@@ -619,7 +638,7 @@ export default function TashkentForecastApp() {
         {activeTab === 'overview' && (
           <>
             <div style={styles.card}>
-              <h2 style={styles.cardTitle}>📈 Динамика цен по классам</h2>
+              <h2 style={styles.cardTitle}>Динамика цен по классам</h2>
               <div style={{ height: '350px' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={analysis.priceHistory}>
@@ -627,7 +646,7 @@ export default function TashkentForecastApp() {
                     <XAxis dataKey="month" stroke="#94a3b8" />
                     <YAxis stroke="#94a3b8" tickFormatter={v => `$${v}`} />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155' }}
+                      contentStyle={{ backgroundColor: '#052e16', border: '1px solid #166534' }}
                       formatter={(v) => [`$${v?.toLocaleString()}`, '']}
                     />
                     <Legend />
@@ -647,7 +666,7 @@ export default function TashkentForecastApp() {
             </div>
 
             <div style={styles.card}>
-              <h2 style={styles.cardTitle}>📍 Средние цены по районам</h2>
+              <h2 style={styles.cardTitle}>Средние цены по районам</h2>
               <div style={{ height: '300px' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
@@ -658,7 +677,7 @@ export default function TashkentForecastApp() {
                     <XAxis type="number" stroke="#94a3b8" tickFormatter={v => `$${v}`} />
                     <YAxis dataKey="district" type="category" width={140} stroke="#94a3b8" tick={{ fontSize: 12 }} />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155' }}
+                      contentStyle={{ backgroundColor: '#052e16', border: '1px solid #166534' }}
                       formatter={(v) => [`$${v?.toLocaleString()}`, 'Цена']}
                     />
                     <Bar dataKey="price" radius={[0, 4, 4, 0]}>
@@ -676,7 +695,7 @@ export default function TashkentForecastApp() {
         {/* Forecast Tab */}
         {activeTab === 'forecast' && forecasts && (
           <div style={styles.card}>
-            <h2 style={styles.cardTitle}>🔮 Прогноз на 24 месяца</h2>
+            <h2 style={styles.cardTitle}>Прогноз на 24 месяца</h2>
             <table style={styles.table}>
               <thead>
                 <tr>
@@ -717,7 +736,7 @@ export default function TashkentForecastApp() {
         {/* Details Tab */}
         {activeTab === 'details' && (
           <div style={styles.card}>
-            <h2 style={styles.cardTitle}>📋 Все ЖК ({analysis.allJK.length})</h2>
+            <h2 style={styles.cardTitle}>Все ЖК ({analysis.allJK.length})</h2>
             <div style={{ overflowX: 'auto', maxHeight: '500px' }}>
               <table style={styles.table}>
                 <thead>
@@ -744,7 +763,6 @@ export default function TashkentForecastApp() {
                       {jk.prices.map((p, j) => (
                         <td key={j} style={styles.td}>${p.toLocaleString()}</td>
                       ))}
-                      {/* Заполняем пустые ячейки если цен меньше чем колонок */}
                       {Array(analysis.priceColumns.length - jk.prices.length).fill(0).map((_, j) => (
                         <td key={`empty-${j}`} style={styles.td}>—</td>
                       ))}
