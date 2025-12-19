@@ -585,7 +585,7 @@ export default function TashkentForecastApp() {
             <div>
               <h1 style={styles.title}>Прогноз цен на новостройки Ташкента</h1>
               <p style={styles.subtitle}>
-                ЖК: {analysis.allJK.length} • Обновлено: {lastUpdate}
+                Общее количество ЖК: {analysis.allJK.length} • Обновлено: {lastUpdate}
               </p>
             </div>
             <div style={styles.buttonGroup}>
