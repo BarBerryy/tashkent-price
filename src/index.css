@@ -1,7 +1,12 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 html, body, #root {
   margin: 0;
   padding: 0;
-  background-color: #0a0f0a;
+  background-color: #1f2d1f;
   min-height: 100vh;
 }

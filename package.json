@@ -1,7 +1,7 @@
 {
-  "name": "tashkent-forecast-v3",
+  "name": "tashkent-forecast",
   "private": true,
-  "version": "3.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
