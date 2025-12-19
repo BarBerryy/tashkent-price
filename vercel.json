@@ -1,5 +1,4 @@
 {
-  "buildCommand": "npx vite build",
-  "installCommand": "npm install",
+  "buildCommand": "rm -rf node_modules && npm install && npx vite build",
   "framework": "vite"
 }
